@@ -163,9 +163,9 @@ func (ms *messageSerializer) deserialize(event []byte, websocketMessage []byte) 
 	case messageTypeBytes:
 		return data, nil
 	case messageTypeJSON:
-		var msg interface{}
-		err := json.Unmarshal(data, &msg)
-		return msg, err
+		// var msg interface{}
+		// err := json.Unmarshal(data, &msg)
+		return string(data), nil
 	default:
 		return nil, fmt.Errorf("Type %s is invalid for message: %s", messageType(typ).Name(), websocketMessage)
 	}
