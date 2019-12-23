@@ -9,6 +9,8 @@ import (
 )
 
 type (
+	//DebugFunc Function for debug
+	DebugFunc func([]byte)
 	// DisconnectFunc is the callback which is fired when a client/connection closed
 	DisconnectFunc func()
 	// ErrorFunc is the callback which fires whenever an error occurs
@@ -57,6 +59,7 @@ type (
 		OnPing(PingFunc)
 		// OnPong  registers a callback which fires on pong message received
 		OnPong(PongFunc)
+		OnDebug(DebugFunc)
 		// FireOnError can be used to send a custom error message to the connection
 		//
 		// It does nothing more than firing the OnError listeners. It doesn't send anything to the client.
@@ -83,6 +86,7 @@ type (
 		onPongListeners          []PongFunc
 		onEventListeners         map[string][]MessageFunc
 		messageSerializer        *messageSerializer
+		onDebugListeners         []DebugFunc
 	}
 
 	//EventLister 事件绑定
@@ -157,6 +161,12 @@ func (c *Client) OnPing(cb PingFunc) {
 // OnPong  registers a callback which fires on pong message received
 func (c *Client) OnPong(cb PongFunc) {
 	c.onPongListeners = append(c.onPongListeners, cb)
+}
+
+// OnDebug debug
+//
+func (c *Client) OnDebug(cb DebugFunc) {
+	c.onDebugListeners = append(c.onDebugListeners, cb)
 }
 
 // FireOnError can be used to send a custom error message to the connection
