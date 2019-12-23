@@ -252,7 +252,9 @@ func IsUnexpectedCloseError(err error, expectedCodes ...int) bool {
 
 // messageReceived checks the incoming message and fire the nativeMessage listeners or the event listeners (ws custom message)
 func (c *Client) messageReceived(data []byte) {
-
+	for _, v := range c.onDebugListeners {
+		v(data)
+	}
 	if bytes.HasPrefix(data, c.config.EvtMessagePrefix) {
 		//it's a custom ws message
 		receivedEvt := c.messageSerializer.getWebsocketCustomEvent(data)
