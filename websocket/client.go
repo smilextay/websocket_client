@@ -10,6 +10,7 @@ import (
 
 type (
 	//DebugFunc Function for debug
+	//Return the source data of every commnit
 	DebugFunc func([]byte)
 	// DisconnectFunc is the callback which is fired when a client/connection closed
 	DisconnectFunc func()
@@ -37,6 +38,10 @@ type (
 
 		//EvtMessagePrefix  custom event prefix
 		EvtMessagePrefix []byte
+
+		//ReadBufferSize  the buff size for the connection reader
+		//Defaul value is 4096
+		ReadBufferSize int
 	}
 	// WsClient is the front-end API that you will use to communicate with the server side
 	WsClient interface {
@@ -98,6 +103,8 @@ type (
 
 var (
 	defaultEvtMessagePrefix = []byte("Ws_golang")
+
+	defaultReadBufferSize = 4096
 )
 
 //NewClient 创建一新的websocket客户端
@@ -111,6 +118,12 @@ func NewClient(conf *Config, event ...EventLister) (WsClient, error) {
 		Protocol: conf.Protocol,
 		Origin:   conf.Origin,
 	}
+	if conf.ReadBufferSize == 0 {
+		config.ReadBufferSize = defaultReadBufferSize
+	} else {
+		config.ReadBufferSize = conf.ReadBufferSize
+	}
+
 	if conf.EvtMessagePrefix == nil {
 		config.EvtMessagePrefix = defaultEvtMessagePrefix
 	} else {
@@ -206,6 +219,9 @@ func (c *Client) Emit(event string, message interface{}) error {
 	if err != nil {
 		return err
 	}
+	for _, v := range c.onDebugListeners {
+		v(msg)
+	}
 	c.Conn.Write(msg)
 	return nil
 }
@@ -215,13 +231,14 @@ func (c *Client) startReader() {
 	defer func() {
 		c.Disconnect()
 	}()
-
+	data := make([]byte, c.config.ReadBufferSize)
 	for {
+
 		// if hasReadTimeout {
 		// 	// set the read deadline based on the configuration
 		// 	conn.SetReadDeadline(time.Now().Add(c.server.config.ReadTimeout))
 		// }
-		data := make([]byte, 512)
+
 		count, err := c.Conn.Read(data)
 		if err != nil {
 			if IsUnexpectedCloseError(err, CloseGoingAway) {
