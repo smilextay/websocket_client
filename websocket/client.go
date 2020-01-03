@@ -246,9 +246,18 @@ func (c *Client) startReader() {
 			}
 			break
 		} else {
-			c.messageReceived(data[:count])
-		}
+			//拆包
+			var tmp []byte
+			if count >= 4092 && len(tmp) == 0 {
+				tmp = data[:count]
+				continue
+			}
 
+			c.messageReceived(append(tmp[:], data[:count]...))
+			if len(tmp) == 0 {
+				tmp = []byte{}
+			}
+		}
 	}
 
 }
