@@ -231,6 +231,7 @@ func (c *Client) startReader() {
 	defer func() {
 		c.Disconnect()
 	}()
+	var tmp []byte
 	data := make([]byte, c.config.ReadBufferSize)
 	for {
 
@@ -247,7 +248,7 @@ func (c *Client) startReader() {
 			break
 		} else {
 			//拆包
-			var tmp []byte
+
 			if count >= 4092 && len(tmp) == 0 {
 				tmp = data[:count]
 				continue
