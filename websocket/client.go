@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"strconv"
+	"sync"
 
 	"golang.org/x/net/websocket"
 )
@@ -73,7 +74,7 @@ type (
 		// OnMessage registers a callback which fires when native websocket message received
 		OnMessage(NativeMessageFunc)
 		// On registers a callback to a particular event which is fired when a message to this event is received
-		On(string, MessageFunc)
+		On(string, ...MessageFunc)
 		Emit(event string, message interface{}) error
 		// Disconnect disconnects the client, close the underline websocket conn and removes it from the conn list
 		// returns the error, if any, from the underline connection
@@ -89,7 +90,7 @@ type (
 		onErrorListeners         []ErrorFunc
 		onPingListeners          []PingFunc
 		onPongListeners          []PongFunc
-		onEventListeners         map[string][]MessageFunc
+		onEventListeners         sync.Map
 		messageSerializer        *messageSerializer
 		onDebugListeners         []DebugFunc
 	}
@@ -134,9 +135,9 @@ func NewClient(conf *Config, event ...EventLister) (WsClient, error) {
 		return nil, err
 	}
 	client := &Client{
-		Conn:              ws,
-		config:            config,
-		onEventListeners:  map[string][]MessageFunc{},
+		Conn:   ws,
+		config: config,
+		// onEventListeners:  map[string][]MessageFunc{},
 		messageSerializer: newMessageSerializer(config.EvtMessagePrefix),
 	}
 	for _, v := range event {
@@ -197,11 +198,22 @@ func (c *Client) OnMessage(cb NativeMessageFunc) {
 }
 
 // On registers a callback to a particular event which is fired when a message to this event is received
-func (c *Client) On(event string, cb MessageFunc) {
-	if c.onEventListeners[event] == nil {
-		c.onEventListeners[event] = make([]MessageFunc, 0)
+func (c *Client) On(event string, cb ...MessageFunc) {
+	if cb == nil {
+		return
 	}
-	c.onEventListeners[event] = append(c.onEventListeners[event], cb)
+	ls, ok := c.onEventListeners.LoadOrStore(event, cb)
+	if ok {
+		//	value was loaded
+		return
+	}
+	cbs, ok := ls.([]MessageFunc)
+	if !ok {
+		c.onEventListeners.Store(event, cb)
+		return
+	}
+	cbs = append(cbs, cb)
+	c.onEventListeners.Store(event, cbs)
 }
 
 // Disconnect disconnects the client, close the underline websocket conn and removes it from the conn list
@@ -247,19 +259,17 @@ func (c *Client) startReader() {
 			}
 			break
 		} else {
-
 			//拆包
+
 			if count >= 4092 && len(tmp) == 0 {
-				tmp = make([]byte, count)
-				copy(tmp, data[:count])
+				tmp = data[:count]
 				continue
 			}
 
-			c.messageReceived(append(tmp, data[:count]...))
-			if len(tmp) > 0 {
+			c.messageReceived(append(tmp[:], data[:count]...))
+			if len(tmp) == 0 {
 				tmp = []byte{}
 			}
-
 		}
 	}
 
@@ -287,7 +297,12 @@ func (c *Client) messageReceived(data []byte) {
 	if bytes.HasPrefix(data, c.config.EvtMessagePrefix) {
 		//it's a custom ws message
 		receivedEvt := c.messageSerializer.getWebsocketCustomEvent(data)
-		listeners, ok := c.onEventListeners[string(receivedEvt)]
+		value, ok := c.onEventListeners.Load(string(receivedEvt))
+		if !ok || value == nil {
+			return
+		}
+
+		listeners, ok := value.([]MessageFunc)
 		if !ok || len(listeners) == 0 {
 			return // if not listeners for this event exit from here
 		}
