@@ -247,17 +247,19 @@ func (c *Client) startReader() {
 			}
 			break
 		} else {
-			//拆包
 
+			//拆包
 			if count >= 4092 && len(tmp) == 0 {
-				tmp = data[:count]
+				tmp = make([]byte, count)
+				copy(tmp, data[:count])
 				continue
 			}
 
-			c.messageReceived(append(tmp[:], data[:count]...))
-			if len(tmp) == 0 {
+			c.messageReceived(append(tmp, data[:count]...))
+			if len(tmp) > 0 {
 				tmp = []byte{}
 			}
+
 		}
 	}
 
