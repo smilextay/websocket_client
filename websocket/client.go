@@ -304,7 +304,6 @@ func IsUnexpectedCloseError(err error, expectedCodes ...int) bool {
 
 // messageReceived checks the incoming message and fire the nativeMessage listeners or the event listeners (ws custom message)
 func (c *Client) messageReceived(data []byte) {
-	return
 	for _, v := range c.onDebugListeners {
 		v(data)
 	}
