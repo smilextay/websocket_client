@@ -360,8 +360,3 @@ func (c *Client) fireDisconnect() {
 		c.onDisconnectListeners[i]()
 	}
 }
-func (c *Client) fireError() {
-	for i := range c.onDisconnectListeners {
-		c.onDisconnectListeners[i]()
-	}
-}
