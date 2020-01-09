@@ -3,6 +3,8 @@ package websocket
 import (
 	"bytes"
 	"context"
+	"log"
+	"net"
 	"strconv"
 	"sync"
 
@@ -177,8 +179,8 @@ func (c *Client) OnPong(cb PongFunc) {
 	c.onPongListeners = append(c.onPongListeners, cb)
 }
 
-// OnDebug debug
-//
+//OnDebug method for debug
+//registers a acllback whitch fires on every send and receive
 func (c *Client) OnDebug(cb DebugFunc) {
 	c.onDebugListeners = append(c.onDebugListeners, cb)
 }
@@ -222,6 +224,7 @@ func (c *Client) Disconnect() error {
 	if c.Conn == nil {
 		return nil
 	}
+	c.fireDisconnect()
 	return c.Conn.Close()
 }
 
@@ -234,7 +237,16 @@ func (c *Client) Emit(event string, message interface{}) error {
 	for _, v := range c.onDebugListeners {
 		v(msg)
 	}
-	c.Conn.Write(msg)
+	_, err = c.Conn.Write(msg)
+	if err != nil {
+		er, ok := err.(*net.OpError)
+		if ok {
+			log.Print(er)
+			c.Disconnect()
+		} else {
+			c.FireOnError(err)
+		}
+	}
 	return nil
 }
 
@@ -342,4 +354,14 @@ func (c *Client) messageReceived(data []byte) {
 		}
 	}
 
+}
+func (c *Client) fireDisconnect() {
+	for i := range c.onDisconnectListeners {
+		c.onDisconnectListeners[i]()
+	}
+}
+func (c *Client) fireError() {
+	for i := range c.onDisconnectListeners {
+		c.onDisconnectListeners[i]()
+	}
 }
