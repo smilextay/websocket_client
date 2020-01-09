@@ -204,9 +204,10 @@ func (c *Client) On(event string, cb ...MessageFunc) {
 	if cb == nil {
 		return
 	}
-	ls, ok := c.onEventListeners.LoadOrStore(event, cb)
-	if ok {
-		//	value was loaded
+
+	ls, ok := c.onEventListeners.Load(event)
+	if !ok {
+		c.onEventListeners.Store(event, cb)
 		return
 	}
 	cbs, ok := ls.([]MessageFunc)
@@ -214,8 +215,8 @@ func (c *Client) On(event string, cb ...MessageFunc) {
 		c.onEventListeners.Store(event, cb)
 		return
 	}
-	cbs = append(cbs, cb)
-	c.onEventListeners.Store(event, cbs)
+
+	c.onEventListeners.Store(event, append(cbs, cb...))
 }
 
 // Disconnect disconnects the client, close the underline websocket conn and removes it from the conn list
@@ -303,6 +304,7 @@ func IsUnexpectedCloseError(err error, expectedCodes ...int) bool {
 
 // messageReceived checks the incoming message and fire the nativeMessage listeners or the event listeners (ws custom message)
 func (c *Client) messageReceived(data []byte) {
+	return
 	for _, v := range c.onDebugListeners {
 		v(data)
 	}

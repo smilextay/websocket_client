@@ -22,7 +22,17 @@ func Test_main(t *testing.T) {
 		log.Print("lost")
 	})
 	wg.Add(1)
-	client.On("chat", func(msg string) {
+	client.On("login", func(msg interface{}) {
+
+		t.Log(msg)
+		wg.Done()
+	})
+	client.On("login", func(msg interface{}) {
+
+		t.Log(msg)
+		wg.Done()
+	})
+	client.On("getstate", func(msg interface{}) {
 
 		t.Log(msg)
 		wg.Done()
